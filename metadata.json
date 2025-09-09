@@ -1,0 +1,5 @@
+{
+  "name": "Sky Crypto Miner Tether",
+  "description": "Симулятор облачного майнинга, в котором вы можете добывать USDT и покупать бустеры для увеличения скорости майнинга.",
+  "requestFramePermissions": []
+}
