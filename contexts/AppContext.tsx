@@ -27,7 +27,6 @@ interface StoredState {
   purchasedBoosterIds: number[];
   withdrawalHistory: WithdrawalRecord[];
   miningHistory: MiningHistoryPoint[];
-  processedReferralIds?: string[];
 }
 
 // Вспомогательная функция для получения уникального ID пользователя из Telegram
@@ -92,8 +91,7 @@ const loadInitialState = (): {
     pendingBoosters: Booster[], 
     purchasedBoosterIds: number[], 
     withdrawalHistory: WithdrawalRecord[],
-    miningHistory: MiningHistoryPoint[],
-    processedReferralIds: string[]
+    miningHistory: MiningHistoryPoint[]
 } => {
   try {
     const savedStateJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -106,7 +104,6 @@ const loadInitialState = (): {
         purchasedBoosterIds: [],
         withdrawalHistory: [],
         miningHistory: [],
-        processedReferralIds: [],
       };
     }
 
@@ -137,7 +134,6 @@ const loadInitialState = (): {
       purchasedBoosterIds: savedState.purchasedBoosterIds || [],
       withdrawalHistory: savedState.withdrawalHistory || [],
       miningHistory: initialHistory,
-      processedReferralIds: savedState.processedReferralIds || [],
     };
   } catch (error) {
     console.error("Не удалось загрузить состояние из localStorage, состояние сброшено.", error);
@@ -150,7 +146,6 @@ const loadInitialState = (): {
       purchasedBoosterIds: [],
       withdrawalHistory: [],
       miningHistory: [],
-      processedReferralIds: [],
     };
   }
 };
@@ -167,7 +162,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [purchasedBoosterIds, setPurchasedBoosterIds] = useState<number[]>(initialState.purchasedBoosterIds);
   const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalRecord[]>(initialState.withdrawalHistory);
   const [miningHistory, setMiningHistory] = useState<MiningHistoryPoint[]>(initialState.miningHistory);
-  const [processedReferralIds, setProcessedReferralIds] = useState<string[]>(initialState.processedReferralIds);
   
   const [boosterForPayment, setBoosterForPayment] = useState<Booster | null>(null);
   const [showPaymentSubmittedModal, setShowPaymentSubmittedModal] = useState(false);
@@ -193,28 +187,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (e) {
         console.error("Не удалось инициализировать Telegram Web App", e);
     }
+    
+    // БЕЗОПАСНОСТЬ: localStorage полностью изолирован для каждого пользователя и его браузера.
+    // Этот ключ используется для СИМУЛЯЦИИ базы данных рефералов, чтобы можно было
+    // протестировать механику в одном браузере. Данные одного пользователя НИКОГДА
+    // не будут доступны другому пользователю в другом браузере или на другом устройстве.
+    const SIMULATED_REFERRALS_DB_KEY = 'sky-crypto-miner-simulated-referrals-db';
 
     // 2. Обработка, если ТЕКУЩИЙ пользователь пришел по реферальной ссылке
     const processIncomingReferral = () => {
         try {
-            const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
-            const currentUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param; // ID пригласившего
+            const currentUser = window.Telegram?.WebApp?.initDataUnsafe?.user; // Новый пользователь
 
             if (startParam && currentUser && startParam !== currentUser.id.toString()) {
-                const referralQueueKey = 'sky-crypto-miner-referral-queue';
-                const queue = JSON.parse(localStorage.getItem(referralQueueKey) || '[]');
-                
-                const newReferral = {
-                    id: `ref-${currentUser.id}-${Date.now()}`,
-                    referrerId: startParam,
-                    newUserId: currentUser.id.toString(),
-                    newUserName: currentUser.first_name || `User #${currentUser.id.toString().slice(-4)}`,
-                    timestamp: Date.now()
-                };
+                const referrals = JSON.parse(localStorage.getItem(SIMULATED_REFERRALS_DB_KEY) || '{}');
+                const newUserId = currentUser.id.toString();
 
-                if (!queue.some((r: any) => r.newUserId === newReferral.newUserId)) {
-                    queue.push(newReferral);
-                    localStorage.setItem(referralQueueKey, JSON.stringify(queue));
+                // Записываем реферала в "базу данных" симуляции
+                if (!referrals[newUserId]) {
+                    referrals[newUserId] = {
+                        referrerId: startParam,
+                        name: currentUser.first_name || `User #${newUserId.slice(-4)}`
+                    };
+                    localStorage.setItem(SIMULATED_REFERRALS_DB_KEY, JSON.stringify(referrals));
                 }
             }
         } catch (e) {
@@ -223,35 +219,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     processIncomingReferral();
 
-    // 3. Проверка, должен ли ТЕКУЩИЙ пользователь получить награду за рефералов
-    const checkForReferrals = () => {
-        const referralQueueKey = 'sky-crypto-miner-referral-queue';
-        let queue;
+    // 3. Синхронизация и начисление наград для ТЕКУЩЕГО пользователя
+    const syncReferralsAndAward = () => {
         try {
-            queue = JSON.parse(localStorage.getItem(referralQueueKey) || '[]');
-        } catch {
-            queue = [];
-        }
-        
-        const myReferrals = queue.filter((r: any) => r.referrerId === USER_ID && !processedReferralIds.includes(r.id));
+            const referrals = JSON.parse(localStorage.getItem(SIMULATED_REFERRALS_DB_KEY) || '{}');
+            
+            const myNewReferrals: ReferredUser[] = [];
+            const existingReferralIds = new Set(referredUsers.map(u => u.id));
 
-        if (myReferrals.length > 0) {
-            const newProcessedIds = [...processedReferralIds];
-            myReferrals.forEach((ref: any) => {
-                const newUser: ReferredUser = {
-                    id: ref.newUserId,
-                    name: ref.newUserName
-                };
-                if (!referredUsers.some(u => u.id === newUser.id)) {
-                    setReferredUsers(prev => [...prev, newUser]);
-                    setMiningRate(prev => prev + REFERRAL_BONUS_PER_MINUTE);
+            for (const newUserId in referrals) {
+                const referralInfo = referrals[newUserId];
+                // Если я - пригласивший, и этого юзера еще нет в моем локальном списке
+                if (referralInfo.referrerId === USER_ID && !existingReferralIds.has(newUserId)) {
+                    myNewReferrals.push({
+                        id: newUserId,
+                        name: referralInfo.name
+                    });
                 }
-                newProcessedIds.push(ref.id);
-            });
-            setProcessedReferralIds(newProcessedIds);
+            }
+
+            if (myNewReferrals.length > 0) {
+                setReferredUsers(prev => [...prev, ...myNewReferrals]);
+                setMiningRate(prev => prev + (myNewReferrals.length * REFERRAL_BONUS_PER_MINUTE));
+            }
+
+        } catch (e) {
+            console.error("Ошибка синхронизации рефералов:", e);
         }
     };
-    checkForReferrals();
+    syncReferralsAndAward();
+    
   }, []);
   
   // Эффект для сохранения состояния в localStorage при изменении ключевых значений
@@ -265,10 +262,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       purchasedBoosterIds,
       withdrawalHistory,
       miningHistory,
-      processedReferralIds,
     };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [balance, miningRate, referredUsers, pendingBoosters, purchasedBoosterIds, withdrawalHistory, miningHistory, processedReferralIds]);
+  }, [balance, miningRate, referredUsers, pendingBoosters, purchasedBoosterIds, withdrawalHistory, miningHistory]);
   
   // Эффект для обновления истории майнинга
   useEffect(() => {
