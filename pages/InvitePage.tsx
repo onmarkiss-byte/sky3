@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
-import { REFERRAL_LINK, REFERRAL_BONUS_PER_DAY } from '../constants';
+import { REFERRAL_BONUS_PER_DAY } from '../constants';
 import type { WithdrawalRecord } from '../types';
 
 const CopyIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -38,26 +39,16 @@ const getStatusClass = (status: WithdrawalRecord['status']) => {
 
 
 const InvitePage = () => {
-    const { invitedFriends, referredUsers, balance, openWithdrawModal, withdrawalHistory, cancelWithdrawal } = useAppContext();
+    const { invitedFriends, referredUsers, balance, openWithdrawModal, withdrawalHistory, cancelWithdrawal, referralLink } = useAppContext();
     const [isCopied, setIsCopied] = useState(false);
-    const [simulatedFriends, setSimulatedFriends] = useState(0);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(REFERRAL_LINK);
+        navigator.clipboard.writeText(referralLink);
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
     };
-
-    const handleAddSimulatedFriend = () => {
-        setSimulatedFriends(prev => prev + 1);
-    };
-
-    const handleResetSimulation = () => {
-        setSimulatedFriends(0);
-    };
     
-    const displayedFriends = invitedFriends + simulatedFriends;
-    const bonusRate = displayedFriends * REFERRAL_BONUS_PER_DAY;
+    const bonusRate = invitedFriends * REFERRAL_BONUS_PER_DAY;
 
     return (
         <div className="text-center">
@@ -73,7 +64,7 @@ const InvitePage = () => {
                         className="bg-gray-900 border border-gray-600 rounded-lg p-3 flex items-center justify-between cursor-pointer hover:bg-gray-700/50 transition-colors"
                         onClick={handleCopy}
                     >
-                        <span className="text-sm break-all mr-2 text-cyan-300">{REFERRAL_LINK}</span>
+                        <span className="text-sm break-all mr-2 text-cyan-300">{referralLink}</span>
                         <button className="flex-shrink-0">
                            {isCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <CopyIcon className="w-5 h-5 text-gray-400" />}
                         </button>
@@ -83,37 +74,15 @@ const InvitePage = () => {
 
                 <div className="w-full mt-8 grid grid-cols-2 gap-4 text-center">
                     <div className="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
-                        <p className="text-sm text-gray-400">{simulatedFriends > 0 ? "Друзей (прогноз)" : "Приглашено друзей"}</p>
-                        <p className="text-2xl font-bold text-white">{displayedFriends}</p>
+                        <p className="text-sm text-gray-400">Приглашено друзей</p>
+                        <p className="text-2xl font-bold text-white">{invitedFriends}</p>
                     </div>
                     <div className="bg-gray-900/70 p-4 rounded-lg border border-gray-700">
-                        <p className="text-sm text-gray-400">{simulatedFriends > 0 ? "Бонусный доход (прогноз)" : "Бонусная скорость"}</p>
+                        <p className="text-sm text-gray-400">Бонусная скорость</p>
                         <p className="text-2xl font-bold text-yellow-400">+{bonusRate.toFixed(2)}</p>
                         <p className="text-xs text-gray-500">USDT/день</p>
                     </div>
                 </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-                <button 
-                    onClick={handleAddSimulatedFriend} 
-                    className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                    Калькулятор присоединения друга
-                </button>
-                {simulatedFriends > 0 && (
-                     <button 
-                        onClick={handleResetSimulation} 
-                        className="w-full bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                        Сбросить
-                    </button>
-                )}
-                {simulatedFriends === 0 && (
-                    <p className="text-xs text-gray-600 text-center mt-1 px-4">
-                        Нажмите, чтобы спрогнозировать свой доход.
-                    </p>
-                )}
             </div>
 
             <div className="mt-8">

@@ -6,6 +6,8 @@ import type { Booster } from './types';
 export const PAYMENT_WALLET_ADDRESS = "0x1234567890123456789012345678901234567890";
 // Payment window timeout in seconds (30 minutes)
 export const PAYMENT_TIMER_DURATION = 30 * 60;
+// Bot username for referral links
+export const BOT_USERNAME = "Sendsetrobot";
 
 const ZapIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
@@ -30,7 +32,6 @@ export const INITIAL_MINING_RATE = 1 / (24 * 60); // 1 USDT per day
 export const REFERRAL_BONUS_PER_WEEK = 1; // 1 USDT per week per friend
 export const REFERRAL_BONUS_PER_DAY = REFERRAL_BONUS_PER_WEEK / 7;
 export const REFERRAL_BONUS_PER_MINUTE = REFERRAL_BONUS_PER_DAY / (24 * 60);
-export const REFERRAL_LINK = "https://t.me/SkyCryptoBot?start=REF_123XYZ";
 
 export const BOOSTERS: Booster[] = [
   {

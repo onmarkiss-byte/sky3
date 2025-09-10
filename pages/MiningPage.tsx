@@ -67,6 +67,7 @@ const MiningChart = () => {
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
+                    minTickGap={60}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Area 
