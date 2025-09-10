@@ -60,10 +60,10 @@ function App() {
       <HashRouter>
         <Layout>
           <Routes>
-            <Route path="/" element={<Navigate to="/mining" replace />} />
             <Route path="/mining" element={<MiningPage />} />
             <Route path="/boosters" element={<BoostersPage />} />
             <Route path="/invite" element={<InvitePage />} />
+            <Route path="*" element={<Navigate to="/mining" replace />} />
           </Routes>
         </Layout>
         <PaymentModal />
